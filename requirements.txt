@@ -1,4 +1,5 @@
 aiogram==2.25.1
 openai==0.27.8
-Flask==2.0.1
 python-dotenv==1.0.0
+Flask==2.2.3
+Werkzeug==2.2.3
