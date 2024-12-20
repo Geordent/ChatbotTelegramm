@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
+from flask import Flask, request
 
 # Загрузка данных из .env файла
 dotenv_path = "/storage/emulated/0/Pydroid 3 bots/.env"
@@ -167,6 +168,19 @@ async def gpt_chat(message: types.Message):
         await message.answer("⚠️ Произошла ошибка при взаимодействии с ChatGPT.")
         logging.error(f"Ошибка ChatGPT: {e}")
 
-# Запуск бота
+# Flask сервер для работы с вебхуками
+app = Flask(__name__)
+
+@app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=["POST"])
+def webhook():
+    json_str = request.get_data().decode("UTF-8")
+    update = types.Update.parse_raw(json_str)
+    dp.process_update(update)
+    return "!", 200
+
+# Устанавливаем вебхук
+bot.set_webhook(f"https://chatbottelegramm.onrender.com/{TELEGRAM_BOT_TOKEN}")
+
+# Запуск бота через Flask сервер
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    app.run(host="0.0.0.0", port=5000)
