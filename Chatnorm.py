@@ -5,23 +5,20 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
-from flask import Flask, request
-from aiogram.utils.exceptions import Throttled
-from asyncio import get_event_loop
 
-# Загрузка данных из .env файла
-dotenv_path = "/storage/emulated/0/Pydroid 3 bots/.env"
+# Загрузка переменных окружения из файла .env
+dotenv_path = "./.env"  # Укажите путь к .env файлу в директории Pydroid 3
 load_dotenv(dotenv_path)
 
-# Получение токенов из .env
+# Получение токенов
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Проверка токенов
 if not TELEGRAM_BOT_TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN не найден. Проверьте .env файл и путь к нему.")
+    raise ValueError("TELEGRAM_BOT_TOKEN не найден. Проверьте .env файл.")
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY не найден. Проверьте .env файл и путь к нему.")
+    raise ValueError("OPENAI_API_KEY не найден. Проверьте .env файл.")
 
 # Установка API-ключа OpenAI
 openai.api_key = OPENAI_API_KEY
@@ -33,21 +30,17 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher(bot)
 
-# Глобальная переменная для хранения выбранной модели
-selected_model = "gpt-3.5-turbo"
-
-# Словарь для хранения истории сообщений пользователей
+# Хранилище данных пользователей
 user_sessions = {}
-
-# Максимальное количество сообщений в истории
 MAX_HISTORY_LENGTH = 60
+selected_model = "gpt-3.5-turbo"  # Модель по умолчанию
 
 # Главное меню
 def main_menu():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(
         KeyboardButton("💬 Чат с ChatGPT"),
-        KeyboardButton("⚙️ Выбрать модель"),
+        KeyboardButton("⚙️ Выбрать модель")
     )
     keyboard.add(
         KeyboardButton("💰 Проверить баланс"),
@@ -77,44 +70,46 @@ async def reset_history(message: types.Message):
         user_sessions.pop(user_id)
     await message.answer("✅ История сообщений очищена.")
 
-# Обработчик кнопки "Проверить баланс"
+# Обработчик "Проверить баланс"
 @dp.message_handler(lambda message: message.text == "💰 Проверить баланс")
 async def check_balance(message: types.Message):
     balance_url = "https://platform.openai.com/account/usage"
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Перейти к балансу OpenAI", url=balance_url))
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Перейти к балансу OpenAI", url=balance_url)
+    )
     await message.answer(
         "💰 Чтобы проверить ваш текущий баланс, перейдите по ссылке ниже:",
         reply_markup=keyboard
     )
 
-# Обработчик кнопки "Пополнить баланс"
+# Обработчик "Пополнить баланс"
 @dp.message_handler(lambda message: message.text == "🔄 Пополнить баланс")
 async def refill_balance(message: types.Message):
     refill_url = "https://platform.openai.com/account/billing"
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Перейти к пополнению баланса", url=refill_url))
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Перейти к пополнению баланса", url=refill_url)
+    )
     await message.answer(
         "💳 Чтобы пополнить баланс, перейдите по ссылке ниже:",
         reply_markup=keyboard
     )
 
-# Обработчик кнопки "Оплатить подписку"
+# Обработчик "Оплатить подписку"
 @dp.message_handler(lambda message: message.text == "💳 Оплатить подписку")
 async def pay_subscription(message: types.Message):
     subscription_url = "https://chat.openai.com/#pricing"
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("Перейти к оплате подписки", url=subscription_url))
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Перейти к оплате подписки", url=subscription_url)
+    )
     await message.answer(
         "🔔 Чтобы оплатить подписку на ChatGPT, перейдите по ссылке ниже:",
         reply_markup=keyboard
     )
 
-# Обработчик кнопки "Выбрать модель"
+# Обработчик "Выбрать модель"
 @dp.message_handler(lambda message: message.text == "⚙️ Выбрать модель")
 async def choose_model(message: types.Message):
-    model_menu = InlineKeyboardMarkup(row_width=2)
-    model_menu.add(
+    model_menu = InlineKeyboardMarkup(row_width=2).add(
         InlineKeyboardButton("GPT-3.5", callback_data="select_gpt-3.5-turbo"),
         InlineKeyboardButton("GPT-4", callback_data="select_gpt-4")
     )
@@ -128,7 +123,7 @@ async def select_model(callback_query: types.CallbackQuery):
     await callback_query.message.answer(f"✅ Вы выбрали модель: {selected_model}")
     await callback_query.answer()
 
-# Обработчик кнопки "Чат с ChatGPT"
+# Обработчик "Чат с ChatGPT"
 @dp.message_handler(lambda message: message.text == "💬 Чат с ChatGPT")
 async def chat_with_gpt(message: types.Message):
     await message.answer(f"💬 Выбранная модель: {selected_model}. Напишите ваш вопрос, и я передам его в ChatGPT!")
@@ -140,25 +135,18 @@ async def gpt_chat(message: types.Message):
     if user_id not in user_sessions:
         user_sessions[user_id] = [{"role": "system", "content": "Ты — помощник."}]
 
-    # Добавляем сообщение пользователя в историю
     user_sessions[user_id].append({"role": "user", "content": message.text})
 
-    # Ограничиваем длину истории
     if len(user_sessions[user_id]) > MAX_HISTORY_LENGTH:
         user_sessions[user_id] = user_sessions[user_id][-MAX_HISTORY_LENGTH:]
 
     try:
-        # Отправляем запрос в OpenAI API
         response = openai.ChatCompletion.create(
             model=selected_model,
             messages=user_sessions[user_id]
         )
-        # Получаем текст ответа
         gpt_response = response["choices"][0]["message"]["content"]
-
-        # Добавляем ответ бота в историю
         user_sessions[user_id].append({"role": "assistant", "content": gpt_response})
-
         await message.answer(gpt_response)
     except openai.error.AuthenticationError:
         await message.answer("⚠️ Ошибка аутентификации API. Проверьте ваш API-ключ.")
@@ -170,26 +158,6 @@ async def gpt_chat(message: types.Message):
         await message.answer("⚠️ Произошла ошибка при взаимодействии с ChatGPT.")
         logging.error(f"Ошибка ChatGPT: {e}")
 
-
-# Flask и настройка вебхука
-app = Flask(__name__)
-
-@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
-def webhook():
-    json_str = request.get_data(as_text=True)
-    update = types.Update.de_json(json_str, bot)
-    dp.process_update(update)
-    return 'ok'
-
-
-# Настройка вебхука при старте
-async def on_start():
-    await bot.set_webhook(f"https://chatbottelegramm.onrender.com/{TELEGRAM_BOT_TOKEN}")
-
-
-# Запуск Flask и настройки вебхука
+# Запуск polling
 if __name__ == "__main__":
-    loop = get_event_loop()
-    loop.run_until_complete(on_start())  # Настроить вебхук
-    app.run(host="0.0.0.0", port=5000)  # Запуск Flask сервера
-
+    executor.start_polling(dp, skip_updates=True)
