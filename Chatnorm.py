@@ -6,6 +6,8 @@ from aiogram.utils import executor
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
 from flask import Flask, request
+from aiogram.utils.exceptions import Throttled
+from asyncio import get_event_loop
 
 # Загрузка данных из .env файла
 dotenv_path = "/storage/emulated/0/Pydroid 3 bots/.env"
@@ -168,19 +170,26 @@ async def gpt_chat(message: types.Message):
         await message.answer("⚠️ Произошла ошибка при взаимодействии с ChatGPT.")
         logging.error(f"Ошибка ChatGPT: {e}")
 
-# Flask сервер для работы с вебхуками
+
+# Flask и настройка вебхука
 app = Flask(__name__)
 
-@app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=["POST"])
+@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
 def webhook():
-    json_str = request.get_data().decode("UTF-8")
-    update = types.Update.parse_raw(json_str)
+    json_str = request.get_data(as_text=True)
+    update = types.Update.de_json(json_str, bot)
     dp.process_update(update)
-    return "!", 200
+    return 'ok'
 
-# Устанавливаем вебхук
-bot.set_webhook(f"https://chatbottelegramm.onrender.com/{TELEGRAM_BOT_TOKEN}")
 
-# Запуск бота через Flask сервер
+# Настройка вебхука при старте
+async def on_start():
+    await bot.set_webhook(f"https://chatbottelegramm.onrender.com/{TELEGRAM_BOT_TOKEN}")
+
+
+# Запуск Flask и настройки вебхука
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    loop = get_event_loop()
+    loop.run_until_complete(on_start())  # Настроить вебхук
+    app.run(host="0.0.0.0", port=5000)  # Запуск Flask сервера
+
