@@ -33,6 +33,12 @@ dp = Dispatcher(bot)
 # Глобальная переменная для хранения выбранной модели
 selected_model = "gpt-3.5-turbo"
 
+# Словарь для хранения истории сообщений пользователей
+user_sessions = {}
+
+# Максимальное количество сообщений в истории
+MAX_HISTORY_LENGTH = 60
+
 # Главное меню
 def main_menu():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -52,11 +58,21 @@ def main_menu():
 # Обработчик команды /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
+    user_id = message.from_user.id
+    user_sessions[user_id] = [{"role": "system", "content": "Ты — помощник."}]
     await message.answer(
         "👋 Привет! Я G_p_t_Chat бот.\n\n"
         "Выберите действие ниже:",
         reply_markup=main_menu(),
     )
+
+# Обработчик команды /reset
+@dp.message_handler(commands=["reset"])
+async def reset_history(message: types.Message):
+    user_id = message.from_user.id
+    if user_id in user_sessions:
+        user_sessions.pop(user_id)
+    await message.answer("✅ История сообщений очищена.")
 
 # Обработчик кнопки "Проверить баланс"
 @dp.message_handler(lambda message: message.text == "💰 Проверить баланс")
@@ -117,16 +133,29 @@ async def chat_with_gpt(message: types.Message):
 # Обработчик текстовых сообщений для ChatGPT
 @dp.message_handler()
 async def gpt_chat(message: types.Message):
+    user_id = message.from_user.id
+    if user_id not in user_sessions:
+        user_sessions[user_id] = [{"role": "system", "content": "Ты — помощник."}]
+
+    # Добавляем сообщение пользователя в историю
+    user_sessions[user_id].append({"role": "user", "content": message.text})
+
+    # Ограничиваем длину истории
+    if len(user_sessions[user_id]) > MAX_HISTORY_LENGTH:
+        user_sessions[user_id] = user_sessions[user_id][-MAX_HISTORY_LENGTH:]
+
     try:
         # Отправляем запрос в OpenAI API
         response = openai.ChatCompletion.create(
             model=selected_model,
-            messages=[
-                {"role": "user", "content": message.text}
-            ]
+            messages=user_sessions[user_id]
         )
         # Получаем текст ответа
         gpt_response = response["choices"][0]["message"]["content"]
+
+        # Добавляем ответ бота в историю
+        user_sessions[user_id].append({"role": "assistant", "content": gpt_response})
+
         await message.answer(gpt_response)
     except openai.error.AuthenticationError:
         await message.answer("⚠️ Ошибка аутентификации API. Проверьте ваш API-ключ.")
