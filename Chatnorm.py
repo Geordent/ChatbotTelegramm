@@ -153,7 +153,7 @@ def main():
     application.add_handler(CallbackQueryHandler(select_model, pattern="select_"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gpt_chat))
 
-    application.run_polling()
+    application.run_polling(poll_interval=5)  # Интервал 5 секунд
 
 if __name__ == "__main__":
     main()
